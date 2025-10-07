@@ -1,33 +1,38 @@
-# app.py
 from fastapi import FastAPI
 from pydantic import BaseModel
 import pandas as pd
-import mlflow.sklearn
+import joblib
+import os
 
-# Load trained model from MLflow
-model = mlflow.sklearn.load_model("runs:/6202ddbc4a2f4cb0b7a3438a9faec91d/linear_regression_model")  
+app = FastAPI(title="Boston Housing Price Predictor")
 
-# Create FastAPI app
-app = FastAPI()
+MODEL_PATH = "models/linear_regression.pkl"
 
-# Define input schema
-class InputData(BaseModel):
+if not os.path.exists(MODEL_PATH):
+    raise FileNotFoundError(f"Model file not found at {MODEL_PATH}. Please run train_model.py first.")
+model = joblib.load(MODEL_PATH)
+
+class HouseFeatures(BaseModel):
     CRIM: float
     ZN: float
     INDUS: float
-    CHAS: float
+    CHAS: int
     NOX: float
     RM: float
     AGE: float
     DIS: float
-    RAD: float
+    RAD: int
     TAX: float
     PTRATIO: float
     B: float
     LSTAT: float
 
+@app.get("/")          # 👈 Add this
+def root():
+    return {"message": "Boston Housing Price Predictor API is running 🚀"}
+
 @app.post("/predict")
-def predict(data: InputData):
-    df = pd.DataFrame([data.dict()])
-    prediction = model.predict(df)
-    return {"prediction": prediction[0]}
+def predict(features: HouseFeatures):
+    input_df = pd.DataFrame([features.dict()])
+    prediction = model.predict(input_df)[0]
+    return {"predicted_price": prediction}
